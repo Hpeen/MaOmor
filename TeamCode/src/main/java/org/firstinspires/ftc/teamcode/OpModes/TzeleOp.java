@@ -117,7 +117,7 @@ public class TzeleOp extends LinearOpMode {
             currentHoodPos = Range.clip(currentHoodPos, 0.3, 0.6);
             hood.setPosition(currentHoodPos);
 
-            // Shooter
+            // Shooter mihnea e orost
             if(gamepad1.right_bumper){
                 arm.setPosition(0.455);
                 ok = false;
