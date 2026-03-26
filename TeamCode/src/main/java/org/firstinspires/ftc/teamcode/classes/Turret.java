@@ -26,7 +26,7 @@ public class Turret {
     public void update() {
         tureta.setTargetPosition(lockedPos);
         tureta.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        tureta.setPower(0.8);
+        tureta.setPower(1);
     }
 
     public int getCurrentPosition() {

@@ -6,7 +6,9 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.classes.Turret;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
@@ -19,7 +21,14 @@ public class TzeleOp extends LinearOpMode {
         SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
 
         // Turret
+        int turretVal = 0;
         Turret tureta = new Turret(hardwareMap);
+        tureta.Lock(turretVal);
+
+        // Hood
+        Servo hood = hardwareMap.get(Servo.class, "servoUnghi");
+        double currentHoodPos = 0.6;
+        hood.setPosition(currentHoodPos);
 
         // Intake
         DcMotor intake = hardwareMap.get(DcMotor.class, "intake");
@@ -36,6 +45,15 @@ public class TzeleOp extends LinearOpMode {
         shooter1.setDirection(DcMotorSimple.Direction.REVERSE);
         shooter2.setDirection(DcMotorSimple.Direction.REVERSE);
 
+        // --- Shooter PIDF Tuning ---
+        // Using Feedforward (F) as primary driver to eliminate overshoot
+        // Optimized for GoBilda 312 RPM Motors (P=2.0, I=0, D=0, F=11.7)
+        PIDFCoefficients shooterPIDF = new PIDFCoefficients(2.0, 0, 0, 11.7);
+        shooter1.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, shooterPIDF);
+        shooter2.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, shooterPIDF);
+        shooter1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        shooter2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
         // Wait for Start
         waitForStart();
 
@@ -49,8 +67,24 @@ public class TzeleOp extends LinearOpMode {
             drive.setWeightedDrivePower(drivePose);
             drive.update();
 
-            // Turret Lock
-            tureta.Lock(0);
+            // Turret Logic
+            if(gamepad1.cross) {
+                turretVal = 0;
+            }
+            if(gamepad1.dpad_right) {
+                turretVal += 15;
+            } else if(gamepad1.dpad_left) {
+                turretVal -= 15;
+            }
+
+            // Wrapping logic
+            if (turretVal > 1400) {
+                turretVal = -270;
+            } else if (turretVal < -270) {
+                turretVal = 1400;
+            }
+
+            tureta.Lock(turretVal);
             tureta.update();
 
             // Intake
@@ -74,17 +108,26 @@ public class TzeleOp extends LinearOpMode {
             }
             previousTriangle = gamepad1.square;
 
+            // Hood
+            if (gamepad1.dpad_up) {
+                currentHoodPos += 0.008;
+            } else if (gamepad1.dpad_down) {
+                currentHoodPos -= 0.008;
+            }
+            currentHoodPos = Range.clip(currentHoodPos, 0.3, 0.6);
+            hood.setPosition(currentHoodPos);
+
             // Shooter
             if(gamepad1.right_bumper){
                 arm.setPosition(0.455);
                 ok = false;
-                shooter1.setVelocity(1200);
-                shooter2.setVelocity(1200);
+                shooter1.setVelocity(1600);
+                shooter2.setVelocity(1600);
             } else if(gamepad1.left_bumper) {
                 arm.setPosition(0.455);
                 ok = false;
-                shooter1.setVelocity(1350);
-                shooter2.setVelocity(1350);
+                shooter1.setVelocity(1300);
+                shooter2.setVelocity(1300);
             } else if(gamepad1.circle) {
                 arm.setPosition(0.2);
                 ok = true;
@@ -99,7 +142,9 @@ public class TzeleOp extends LinearOpMode {
             telemetry.addData("Robot Pose", "X: %.2f Y: %.2f H: %.2f",
                     currentPose.getX(), currentPose.getY(), currentPose.getHeading());
             telemetry.addData("Shooter Vel: ", shooter1.getVelocity());
-            telemetry.addData("Servo Position: ", arm.getPosition());
+            telemetry.addData("Arm Position: ", arm.getPosition());
+            telemetry.addData("Hood Position: ", hood.getPosition());
+            telemetry.addData("Turret Target: ", turretVal);
             telemetry.update();
         }
     }
