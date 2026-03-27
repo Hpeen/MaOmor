@@ -46,9 +46,10 @@ public class TzeleOp extends LinearOpMode {
         shooter2.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // --- Shooter PIDF Tuning ---
-        // Using Feedforward (F) as primary driver to eliminate overshoot
-        // Optimized for GoBilda 312 RPM Motors (P=2.0, I=0, D=0, F=11.7)
-        PIDFCoefficients shooterPIDF = new PIDFCoefficients(2.0, 0, 0, 11.7);
+        // Optimized for GoBilda 1:1 (6000 RPM) Motors
+        // Max TPS is ~2800. F = 32767 / 2800 = 11.7
+        // P is set low (1.1) to eliminate the "jump" or overshoot behavior.
+        PIDFCoefficients shooterPIDF = new PIDFCoefficients(1.1, 0, 0, 11.7);
         shooter1.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, shooterPIDF);
         shooter2.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, shooterPIDF);
         shooter1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -117,17 +118,17 @@ public class TzeleOp extends LinearOpMode {
             currentHoodPos = Range.clip(currentHoodPos, 0.3, 0.6);
             hood.setPosition(currentHoodPos);
 
-            // Shooter mihnea e orost
+            // Shooter
             if(gamepad1.right_bumper){
                 arm.setPosition(0.455);
                 ok = false;
-                shooter1.setVelocity(1600);
-                shooter2.setVelocity(1600);
+                shooter1.setVelocity(1200);
+                shooter2.setVelocity(1200);
             } else if(gamepad1.left_bumper) {
                 arm.setPosition(0.455);
                 ok = false;
-                shooter1.setVelocity(1300);
-                shooter2.setVelocity(1300);
+                shooter1.setVelocity(1400);
+                shooter2.setVelocity(1400);
             } else if(gamepad1.circle) {
                 arm.setPosition(0.2);
                 ok = true;
