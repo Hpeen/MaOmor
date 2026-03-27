@@ -111,9 +111,9 @@ public class TzeleOp extends LinearOpMode {
 
             // Hood
             if (gamepad1.dpad_up) {
-                currentHoodPos += 0.008;
+                currentHoodPos += 0.004;
             } else if (gamepad1.dpad_down) {
-                currentHoodPos -= 0.008;
+                currentHoodPos -= 0.004;
             }
             currentHoodPos = Range.clip(currentHoodPos, 0.3, 0.6);
             hood.setPosition(currentHoodPos);
