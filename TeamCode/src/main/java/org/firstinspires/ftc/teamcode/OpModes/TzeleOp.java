@@ -20,6 +20,13 @@ public class TzeleOp extends LinearOpMode {
         // Initialize Drive (handles all 4 motors)
         SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
 
+        // --- SET INITIAL POSE ---
+        // Road Runner defaults to (0,0,0) which is usually "facing up" on the map.
+        // If your robot physically starts facing "down", use Math.toRadians(180).
+        // Adjust this value until the dashboard matches your physical setup.
+        Pose2d startPose = new Pose2d(0, 0, Math.toRadians(180));
+        drive.setPoseEstimate(startPose);
+
         // Turret
         int turretVal = 0;
         Turret tureta = new Turret(hardwareMap);
@@ -46,9 +53,6 @@ public class TzeleOp extends LinearOpMode {
         shooter2.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // --- Shooter PIDF Tuning ---
-        // Optimized for GoBilda 1:1 (6000 RPM) Motors
-        // Max TPS is ~2800. F = 32767 / 2800 = 11.7
-        // P is set low (1.1) to eliminate the "jump" or overshoot behavior.
         PIDFCoefficients shooterPIDF = new PIDFCoefficients(1.1, 0, 0, 11.7);
         shooter1.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, shooterPIDF);
         shooter2.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, shooterPIDF);
@@ -59,12 +63,22 @@ public class TzeleOp extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            // Drive logic
-            Pose2d drivePose = new Pose2d(
-                    -gamepad1.left_stick_y,
-                    -gamepad1.left_stick_x,
-                    -gamepad1.right_stick_x
-            );
+            // --- HEADING RESET ---
+            // Press the 'share' or 'options' button to manually re-zero the dashboard heading.
+            if (gamepad1.share || gamepad1.options) {
+                drive.setPoseEstimate(new Pose2d(0, 0, 180));
+            }
+
+            // Drive logic with deadzone
+            double driveX = -gamepad1.left_stick_y;
+            double driveY = -gamepad1.left_stick_x;
+            double driveTurn = -gamepad1.right_stick_x;
+
+            if (Math.abs(driveX) < 0.05) driveX = 0;
+            if (Math.abs(driveY) < 0.05) driveY = 0;
+            if (Math.abs(driveTurn) < 0.05) driveTurn = 0;
+
+            Pose2d drivePose = new Pose2d(driveX, driveY, driveTurn);
             drive.setWeightedDrivePower(drivePose);
             drive.update();
 
@@ -122,13 +136,13 @@ public class TzeleOp extends LinearOpMode {
             if(gamepad1.right_bumper){
                 arm.setPosition(0.455);
                 ok = false;
-                shooter1.setVelocity(1200);
-                shooter2.setVelocity(1200);
+                shooter1.setVelocity(1600);
+                shooter2.setVelocity(1600);
             } else if(gamepad1.left_bumper) {
                 arm.setPosition(0.455);
                 ok = false;
-                shooter1.setVelocity(1400);
-                shooter2.setVelocity(1400);
+                shooter1.setVelocity(2000);
+                shooter2.setVelocity(2000);
             } else if(gamepad1.circle) {
                 arm.setPosition(0.2);
                 ok = true;
@@ -136,12 +150,12 @@ public class TzeleOp extends LinearOpMode {
                 shooter2.setPower(0);
             }
 
-            // Telemetry for Debugging
+            // Telemetry
             telemetry.addData("Status", "Running");
             telemetry.addData("Turret Pos", tureta.getCurrentPosition());
             Pose2d currentPose = drive.getPoseEstimate();
             telemetry.addData("Robot Pose", "X: %.2f Y: %.2f H: %.2f",
-                    currentPose.getX(), currentPose.getY(), currentPose.getHeading());
+                    currentPose.getX(), currentPose.getY(), Math.toDegrees(currentPose.getHeading()));
             telemetry.addData("Shooter Vel: ", shooter1.getVelocity());
             telemetry.addData("Arm Position: ", arm.getPosition());
             telemetry.addData("Hood Position: ", hood.getPosition());
