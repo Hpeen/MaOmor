@@ -91,6 +91,7 @@ public class Outtake {
             turretVal = rawTarget;
 
             // --- REFINED TRAJECTORY ALGORITHM (AUTO VELOCITY) ---
+            // Continuous calculation: Updates even while shooter is on
             double targetV = 1000 + (870 * Math.pow(distanceFactor, 1.5)); 
             
             // "Far shooting mode": Reduce power when robot is in positive X to prevent overshooting
@@ -161,8 +162,9 @@ public class Outtake {
             shooter1.setVelocity(currentRampVelocity);
             shooter2.setVelocity(currentRampVelocity);
         } else {
-            shooter1.setPower(0);
-            shooter2.setPower(0);
+            // Idle at 50% power to eliminate spin-up time
+            shooter1.setPower(0.5);
+            shooter2.setPower(0.5);
         }
     }
 
@@ -189,8 +191,8 @@ public class Outtake {
         shooterOn = false;
         baseTargetVelocity = 0;
         isRamping = false;
-        shooter1.setPower(0);
-        shooter2.setPower(0);
+        shooter1.setPower(0.5); // Maintain idle
+        shooter2.setPower(0.5);
     }
 
     public void triggerRamp() {

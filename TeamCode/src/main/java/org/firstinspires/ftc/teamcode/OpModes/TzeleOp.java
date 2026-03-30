@@ -13,8 +13,8 @@ import org.firstinspires.ftc.teamcode.util.PoseStorage;
 public class TzeleOp extends LinearOpMode {
 
     // --- Auto Aim Configuration ---
-    double goalX = -72; //-72
-    double goalY = -65; //-65
+    double goalX = -65; //-72 sau -58
+    double goalY = -65; //-65 sau -55
     
     boolean autoAim = false;
     boolean previousTriangle = false;
