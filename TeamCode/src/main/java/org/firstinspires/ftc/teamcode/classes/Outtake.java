@@ -40,7 +40,6 @@ public class Outtake {
 
     // Edge detection
     private boolean prevRB = false;
-    private boolean prevLB = false;
     private boolean prevCircle = false;
 
     public Outtake(HardwareMap hardwareMap) {
@@ -73,43 +72,58 @@ public class Outtake {
         double dy = goalY - currentPose.getY();
         double distance = Math.hypot(dx, dy);
 
+        double referenceDistance = 100.0;
+        double distanceFactor = distance / referenceDistance;
+
         if (autoAim) {
             double angleToGoal = Math.atan2(dy, dx);
             double relativeAngle = angleToGoal - currentPose.getHeading();
             while (relativeAngle > Math.PI) relativeAngle -= 2 * Math.PI;
             while (relativeAngle < -Math.PI) relativeAngle += 2 * Math.PI;
-            turretVal = (int) (relativeAngle * TURRET_TICKS_PER_RADIAN);
 
-            double referenceDistance = 100.0;
-            double distanceFactor = distance / referenceDistance;
-            baseTargetVelocity = 1870 * distanceFactor * SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION;
-            currentHoodPos = 0.3 + (0.3 * distanceFactor);
-            baseTargetVelocity = Range.clip(baseTargetVelocity, 1000, 2800);
-            currentHoodPos = Range.clip(currentHoodPos, 0.3, 0.6);
+            int rawTarget = (int) (relativeAngle * TURRET_TICKS_PER_RADIAN);
+            int currentPos = tureta.getCurrentPosition();
+
+            int fullRev = (int) TURRET_TICKS_PER_REV;
+            while (rawTarget - currentPos > fullRev / 2)  rawTarget -= fullRev;
+            while (rawTarget - currentPos < -fullRev / 2) rawTarget += fullRev;
+
+            turretVal = rawTarget;
+
+            // --- REFINED TRAJECTORY ALGORITHM (AUTO VELOCITY) ---
+            double targetV = 1000 + (870 * Math.pow(distanceFactor, 1.5)); 
+            
+            // "Far shooting mode": Reduce power when robot is in positive X to prevent overshooting
+            if (currentPose.getX() > 0) {
+                targetV *= 0.94; 
+            }
+            
+            targetV *= (SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION);
+            baseTargetVelocity = Range.clip(targetV, 1000, 2800);
         } else if (gamepad != null) {
-            if (gamepad.dpad_up) currentHoodPos += 0.004;
-            else if (gamepad.dpad_down) currentHoodPos -= 0.004;
-            currentHoodPos = Range.clip(currentHoodPos, 0.3, 0.6);
-
             if (gamepad.cross) turretVal = 0;
             if (gamepad.dpad_right) turretVal -= 15;
             else if (gamepad.dpad_left) turretVal += 15;
         }
 
+        // --- AUTOMATIC HOOD LOGIC ---
+        // Always tracks distance
+        double targetH = 0.3 + (0.3 * distanceFactor);
+        currentHoodPos = Range.clip(targetH, 0.3, 0.6);
+
         if (gamepad != null) {
             if (gamepad.right_bumper && !prevRB) {
                 setShooterOn(true);
-                if (!autoAim) baseTargetVelocity = 1870 * SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION;
-            }
-            if (gamepad.left_bumper && !prevLB) {
-                setShooterOn(true);
-                if (!autoAim) baseTargetVelocity = 2040 * SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION;
+                if (!autoAim) {
+                    double manualV = 1500;
+                    if (currentPose.getX() > 0) manualV *= 0.94;
+                    baseTargetVelocity = manualV * SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION;
+                }
             }
             if (gamepad.circle && !prevCircle) {
                 setShooterOn(false);
             }
             prevRB = gamepad.right_bumper;
-            prevLB = gamepad.left_bumper;
             prevCircle = gamepad.circle;
 
             if (gamepad.right_trigger > 0.1 && shooterOn && !isRamping) {
@@ -123,7 +137,7 @@ public class Outtake {
                 currentRampVelocity = baseTargetVelocity + (baseTargetVelocity * 0.2 * (time / 0.5));
             } else {
                 currentRampVelocity = baseTargetVelocity * 1.2;
-                if (gamepad != null && gamepad.right_trigger <= 0.1) {
+                if (gamepad == null || gamepad.right_trigger <= 0.1) {
                     isRamping = false;
                 }
             }
@@ -133,27 +147,25 @@ public class Outtake {
             currentRampVelocity = 0;
         }
 
+        // Wrap around when reaching a limit
         if (turretVal > MAX_TURRET_LIMIT) turretVal = MIN_TURRET_LIMIT;
         else if (turretVal < MIN_TURRET_LIMIT) turretVal = MAX_TURRET_LIMIT;
 
         tureta.setTargetPosition(turretVal);
         tureta.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        tureta.setPower(1.0);
+        tureta.setPower(0.8);
 
+        // Update hardware
+        hood.setPosition(currentHoodPos); 
         if (shooterOn) {
             shooter1.setVelocity(currentRampVelocity);
             shooter2.setVelocity(currentRampVelocity);
-            hood.setPosition(currentHoodPos);
         } else {
             shooter1.setPower(0);
             shooter2.setPower(0);
         }
     }
 
-    /**
-     * Directly sets velocity on shooter motors — use this in autonomous
-     * where update() is not being called in a loop.
-     */
     public void setVelocityDirect(double velocity) {
         this.baseTargetVelocity = velocity;
         this.shooterOn = true;
@@ -162,10 +174,6 @@ public class Outtake {
         hood.setPosition(currentHoodPos);
     }
 
-    /**
-     * Calls update() in a loop until the shooter reaches the target velocity,
-     * or until the timeout (ms) expires.
-     */
     public void waitForVelocity(double targetVelocity, long timeoutMs) {
         ElapsedTime timer = new ElapsedTime();
         while (timer.milliseconds() < timeoutMs) {

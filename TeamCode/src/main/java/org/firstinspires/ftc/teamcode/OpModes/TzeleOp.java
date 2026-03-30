@@ -7,13 +7,14 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.teamcode.classes.Intake;
 import org.firstinspires.ftc.teamcode.classes.Outtake;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
+import org.firstinspires.ftc.teamcode.util.PoseStorage;
 
 @TeleOp(name = "TzeleOp", group = "Linear OpMode")
 public class TzeleOp extends LinearOpMode {
 
     // --- Auto Aim Configuration ---
-    double goalX = -72;
-    double goalY = -69;
+    double goalX = -72; //-72
+    double goalY = -65; //-65
     
     boolean autoAim = false;
     boolean previousTriangle = false;
@@ -25,9 +26,13 @@ public class TzeleOp extends LinearOpMode {
         Intake intake = new Intake(hardwareMap);
         Outtake outtake = new Outtake(hardwareMap);
 
-        // Set initial pose (facing down)
-        Pose2d startPose = new Pose2d(0, 0, Math.toRadians(180));
-        drive.setPoseEstimate(startPose);
+        // Check if we have a stored pose from Autonomous
+        if (PoseStorage.currentPose != null) {
+            drive.setPoseEstimate(PoseStorage.currentPose);
+        } else {
+            // Default starting pose if no Auto was run
+            drive.setPoseEstimate(new Pose2d(0, 0, Math.toRadians(180)));
+        }
 
         // Ensure arm is closed in init
         intake.setArmPosition(0.2);
