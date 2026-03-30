@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.classes;
 
+import com.acmerobotics.roadrunner.control.PIDCoefficients;
+import com.acmerobotics.roadrunner.control.PIDFController;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -13,8 +15,9 @@ import com.qualcomm.robotcore.util.Range;
 
 public class Outtake {
     // --- Turret Configuration ---
-    private DcMotor tureta;
-    private int turretVal = 0;
+    private DcMotorEx tureta;
+    private double turretTargetPos = 0; // Smoothed target
+    private int turretVal = 0; // Target in ticks
     private static final double TURRET_MOTOR_TPR = 383.6;
     private static final double TURRET_EXTERNAL_RATIO = 4.7;
     private static final double TURRET_TICKS_PER_REV = TURRET_MOTOR_TPR * TURRET_EXTERNAL_RATIO;
@@ -22,6 +25,14 @@ public class Outtake {
 
     public int MIN_TURRET_LIMIT = -315;
     public int MAX_TURRET_LIMIT = 1395;
+
+    // Turret PIDF - Lowered P and increased D to soften movements
+    public static PIDCoefficients TURRET_PID = new PIDCoefficients(0.005, 0, 0.0004);
+    public static double TURRET_F = 0.04;
+    private PIDFController turretController;
+
+    private boolean turretLocked = false;
+    private int lockedTurretPos = 0;
 
     // --- Shooter ---
     private DcMotorEx shooter1, shooter2;
@@ -43,12 +54,12 @@ public class Outtake {
     private boolean prevCircle = false;
 
     public Outtake(HardwareMap hardwareMap) {
-        tureta = hardwareMap.get(DcMotor.class, "tureta");
+        tureta = hardwareMap.get(DcMotorEx.class, "tureta");
         tureta.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        tureta.setTargetPosition(0);
-        tureta.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        tureta.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         tureta.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        tureta.setPower(1.0);
+
+        turretController = new PIDFController(TURRET_PID, 0, 0, TURRET_F);
 
         shooter1 = hardwareMap.get(DcMotorEx.class, "shooter");
         shooter2 = hardwareMap.get(DcMotorEx.class, "shooter2");
@@ -75,7 +86,12 @@ public class Outtake {
         double referenceDistance = 100.0;
         double distanceFactor = distance / referenceDistance;
 
-        if (autoAim) {
+        double instantTarget = turretTargetPos;
+
+        if (turretLocked) {
+            instantTarget = lockedTurretPos;
+            turretVal = lockedTurretPos;
+        } else if (autoAim && distance > 15.0) {
             double angleToGoal = Math.atan2(dy, dx);
             double relativeAngle = angleToGoal - currentPose.getHeading();
             while (relativeAngle > Math.PI) relativeAngle -= 2 * Math.PI;
@@ -85,18 +101,25 @@ public class Outtake {
             int currentPos = tureta.getCurrentPosition();
 
             int fullRev = (int) TURRET_TICKS_PER_REV;
+            // Shortest path logic
             while (rawTarget - currentPos > fullRev / 2)  rawTarget -= fullRev;
             while (rawTarget - currentPos < -fullRev / 2) rawTarget += fullRev;
 
+            // Intelligent wrap: Only jump to the other side if it's reachable and valid
+            if (rawTarget > MAX_TURRET_LIMIT) {
+                if (rawTarget - fullRev >= MIN_TURRET_LIMIT) rawTarget -= fullRev;
+            } else if (rawTarget < MIN_TURRET_LIMIT) {
+                if (rawTarget + fullRev <= MAX_TURRET_LIMIT) rawTarget += fullRev;
+            }
+
             turretVal = rawTarget;
+            instantTarget = turretVal;
 
             // --- REFINED TRAJECTORY ALGORITHM (AUTO VELOCITY) ---
-            // Continuous calculation: Updates even while shooter is on
             double targetV = 1000 + (870 * Math.pow(distanceFactor, 1.5)); 
             
-            // "Far shooting mode": Reduce power when robot is in positive X to prevent overshooting
             if (currentPose.getX() > 0) {
-                targetV *= 0.94; 
+                targetV *= 0.90;
             }
             
             targetV *= (SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION);
@@ -105,10 +128,17 @@ public class Outtake {
             if (gamepad.cross) turretVal = 0;
             if (gamepad.dpad_right) turretVal -= 15;
             else if (gamepad.dpad_left) turretVal += 15;
+            instantTarget = turretVal;
         }
 
+        // Apply Low-Pass Filter (smoothing) to the target to eliminate high-frequency jerking
+        // 0.15 is the gain; lower values make it smoother
+        turretTargetPos = (turretTargetPos * 0.85) + (instantTarget * 0.15);
+
+        // Final safety clip to physical hardware limits
+        int finalClippedTarget = (int) Range.clip(turretTargetPos, MIN_TURRET_LIMIT, MAX_TURRET_LIMIT);
+
         // --- AUTOMATIC HOOD LOGIC ---
-        // Always tracks distance
         double targetH = 0.3 + (0.3 * distanceFactor);
         currentHoodPos = Range.clip(targetH, 0.3, 0.6);
 
@@ -148,13 +178,13 @@ public class Outtake {
             currentRampVelocity = 0;
         }
 
-        // Wrap around when reaching a limit
-        if (turretVal > MAX_TURRET_LIMIT) turretVal = MIN_TURRET_LIMIT;
-        else if (turretVal < MIN_TURRET_LIMIT) turretVal = MAX_TURRET_LIMIT;
-
-        tureta.setTargetPosition(turretVal);
-        tureta.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        tureta.setPower(0.8);
+        // Turret PIDF Update
+        turretController.setTargetPosition(finalClippedTarget);
+        double turretPower = turretController.update(tureta.getCurrentPosition());
+        
+        // Locked mode uses full power
+        double maxPower = turretLocked ? 1.0 : 1.0; 
+        tureta.setPower(Range.clip(turretPower, -maxPower, maxPower));
 
         // Update hardware
         hood.setPosition(currentHoodPos); 
@@ -166,6 +196,11 @@ public class Outtake {
             shooter1.setPower(0.5);
             shooter2.setPower(0.5);
         }
+    }
+
+    public void setTurretLock(boolean locked, int position) {
+        this.turretLocked = locked;
+        this.lockedTurretPos = position;
     }
 
     public void setVelocityDirect(double velocity) {
