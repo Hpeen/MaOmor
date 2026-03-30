@@ -31,6 +31,10 @@ public class Intake {
         prevSquare = gamepad.square;
     }
 
+    public void setMotorPower(double power) {
+        intake.setPower(power);
+    }
+
     public void setArmPosition(double position) {
         arm.setPosition(position);
         armExtended = (position > 0.3);

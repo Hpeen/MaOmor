@@ -31,10 +31,7 @@ public class Outtake {
     private ElapsedTime rampTimer = new ElapsedTime();
     private boolean isRamping = false;
 
-    // Compensation factor for mechanical slippage (target 1400 -> results in 1200)
-    // 1400 / 1200 = 1.166... We multiply our target by this to reach the real desired speed.
     private static final double MECHANICAL_COMPENSATION = 1.1667;
-    // Lowering target speed by 8 percent
     private static final double SPEED_ADJUSTMENT = 0.92;
 
     // --- Hood ---
@@ -47,7 +44,6 @@ public class Outtake {
     private boolean prevCircle = false;
 
     public Outtake(HardwareMap hardwareMap) {
-        // Turret init
         tureta = hardwareMap.get(DcMotor.class, "tureta");
         tureta.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         tureta.setTargetPosition(0);
@@ -55,7 +51,6 @@ public class Outtake {
         tureta.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         tureta.setPower(1.0);
 
-        // Shooter init
         shooter1 = hardwareMap.get(DcMotorEx.class, "shooter");
         shooter2 = hardwareMap.get(DcMotorEx.class, "shooter2");
         shooter1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
@@ -69,7 +64,6 @@ public class Outtake {
         shooter1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        // Hood init
         hood = hardwareMap.get(Servo.class, "servoUnghi");
         hood.setPosition(currentHoodPos);
     }
@@ -79,7 +73,6 @@ public class Outtake {
         double dy = goalY - currentPose.getY();
         double distance = Math.hypot(dx, dy);
 
-        // --- 1. Variable Calculations ---
         if (autoAim) {
             double angleToGoal = Math.atan2(dy, dx);
             double relativeAngle = angleToGoal - currentPose.getHeading();
@@ -89,54 +82,48 @@ public class Outtake {
 
             double referenceDistance = 100.0;
             double distanceFactor = distance / referenceDistance;
-            
-            // Base target velocity adjusted for 8% reduction and mechanical compensation
             baseTargetVelocity = 1870 * distanceFactor * SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION;
-            currentHoodPos = 0.3 + (0.3 * distanceFactor); 
-            
+            currentHoodPos = 0.3 + (0.3 * distanceFactor);
             baseTargetVelocity = Range.clip(baseTargetVelocity, 1000, 2800);
             currentHoodPos = Range.clip(currentHoodPos, 0.3, 0.6);
-        } else {
+        } else if (gamepad != null) {
             if (gamepad.dpad_up) currentHoodPos += 0.004;
             else if (gamepad.dpad_down) currentHoodPos -= 0.004;
             currentHoodPos = Range.clip(currentHoodPos, 0.3, 0.6);
 
-            if(gamepad.cross) turretVal = 0;
-            if(gamepad.dpad_right) turretVal -= 15;
-            else if(gamepad.dpad_left) turretVal += 15;
+            if (gamepad.cross) turretVal = 0;
+            if (gamepad.dpad_right) turretVal -= 15;
+            else if (gamepad.dpad_left) turretVal += 15;
         }
 
-        // --- 2. Shooter Activation & Ramping ---
-        if (gamepad.right_bumper && !prevRB) {
-            shooterOn = true;
-            if (!autoAim) baseTargetVelocity = 1870 * SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION; 
-        }
-        if (gamepad.left_bumper && !prevLB) {
-            shooterOn = true;
-            if (!autoAim) baseTargetVelocity = 2040 * SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION;
-        }
-        if (gamepad.circle && !prevCircle) {
-            shooterOn = false;
-            baseTargetVelocity = 0;
-            isRamping = false;
-        }
-        prevRB = gamepad.right_bumper;
-        prevLB = gamepad.left_bumper;
-        prevCircle = gamepad.circle;
+        if (gamepad != null) {
+            if (gamepad.right_bumper && !prevRB) {
+                setShooterOn(true);
+                if (!autoAim) baseTargetVelocity = 1870 * SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION;
+            }
+            if (gamepad.left_bumper && !prevLB) {
+                setShooterOn(true);
+                if (!autoAim) baseTargetVelocity = 2040 * SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION;
+            }
+            if (gamepad.circle && !prevCircle) {
+                setShooterOn(false);
+            }
+            prevRB = gamepad.right_bumper;
+            prevLB = gamepad.left_bumper;
+            prevCircle = gamepad.circle;
 
-        // Trigger ramp when right trigger is pressed (feeding)
-        if (gamepad.right_trigger > 0.1 && shooterOn && !isRamping) {
-            triggerRamp();
+            if (gamepad.right_trigger > 0.1 && shooterOn && !isRamping) {
+                triggerRamp();
+            }
         }
 
-        // Ramping Algorithm
         if (isRamping) {
             double time = rampTimer.seconds();
             if (time < 0.5) {
                 currentRampVelocity = baseTargetVelocity + (baseTargetVelocity * 0.2 * (time / 0.5));
             } else {
                 currentRampVelocity = baseTargetVelocity * 1.2;
-                if (gamepad.right_trigger <= 0.1) {
+                if (gamepad != null && gamepad.right_trigger <= 0.1) {
                     isRamping = false;
                 }
             }
@@ -146,7 +133,6 @@ public class Outtake {
             currentRampVelocity = 0;
         }
 
-        // --- 3. Hardware Application ---
         if (turretVal > MAX_TURRET_LIMIT) turretVal = MIN_TURRET_LIMIT;
         else if (turretVal < MIN_TURRET_LIMIT) turretVal = MAX_TURRET_LIMIT;
 
@@ -164,11 +150,63 @@ public class Outtake {
         }
     }
 
+    /**
+     * Directly sets velocity on shooter motors — use this in autonomous
+     * where update() is not being called in a loop.
+     */
+    public void setVelocityDirect(double velocity) {
+        this.baseTargetVelocity = velocity;
+        this.shooterOn = true;
+        shooter1.setVelocity(velocity);
+        shooter2.setVelocity(velocity);
+        hood.setPosition(currentHoodPos);
+    }
+
+    /**
+     * Calls update() in a loop until the shooter reaches the target velocity,
+     * or until the timeout (ms) expires.
+     */
+    public void waitForVelocity(double targetVelocity, long timeoutMs) {
+        ElapsedTime timer = new ElapsedTime();
+        while (timer.milliseconds() < timeoutMs) {
+            double v1 = shooter1.getVelocity();
+            double v2 = shooter2.getVelocity();
+            if (v1 >= targetVelocity * 0.95 && v2 >= targetVelocity * 0.95) break;
+            shooter1.setVelocity(targetVelocity);
+            shooter2.setVelocity(targetVelocity);
+        }
+    }
+
+    public void stopShooter() {
+        shooterOn = false;
+        baseTargetVelocity = 0;
+        isRamping = false;
+        shooter1.setPower(0);
+        shooter2.setPower(0);
+    }
+
     public void triggerRamp() {
         if (!isRamping) {
             rampTimer.reset();
             isRamping = true;
         }
+    }
+
+    public void setShooterOn(boolean on) {
+        this.shooterOn = on;
+        if (!on) {
+            baseTargetVelocity = 0;
+            isRamping = false;
+        }
+    }
+
+    public void setTargetVelocity(double velocity) {
+        this.baseTargetVelocity = velocity;
+    }
+
+    public void setHoodPosition(double position) {
+        this.currentHoodPos = position;
+        hood.setPosition(position);
     }
 
     public boolean isShooterOn() { return shooterOn; }
