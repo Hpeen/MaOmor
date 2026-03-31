@@ -13,11 +13,13 @@ import org.firstinspires.ftc.teamcode.util.PoseStorage;
 public class TzeleOp extends LinearOpMode {
 
     // --- Auto Aim Configuration ---
-    double goalX = -70; //-72 sau -58
-    double goalY = -67; //-65 sau -55
-    
+    double goalX = -72; //-72 sau -58
+    double goalYBlue = -65; //-65 sau -55
+    double goalYRed = 65;
+
     boolean autoAim = false;
     boolean previousTriangle = false;
+    boolean previousDpadUp = false;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -53,6 +55,14 @@ public class TzeleOp extends LinearOpMode {
             }
             previousTriangle = gamepad1.triangle;
 
+            // Alliance Toggle
+            if (gamepad1.dpad_up && !previousDpadUp) {
+                PoseStorage.isBlueAlliance = !PoseStorage.isBlueAlliance;
+            }
+            previousDpadUp = gamepad1.dpad_up;
+
+            double goalY = PoseStorage.isBlueAlliance ? goalYBlue : goalYRed;
+
             // --- DRIVE LOGIC ---
             double driveX = -gamepad1.left_stick_y;
             double driveY = -gamepad1.left_stick_x;
@@ -84,6 +94,7 @@ public class TzeleOp extends LinearOpMode {
             }
 
             // --- TELEMETRY ---
+            telemetry.addData("Alliance", PoseStorage.isBlueAlliance ? "BLUE" : "RED");
             telemetry.addData("Mode", autoAim ? "AUTO AIM" : "MANUAL");
             Pose2d pose = drive.getPoseEstimate();
             telemetry.addData("Robot Pose", "X:%.1f Y:%.1f H:%.1f deg", 
