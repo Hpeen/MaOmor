@@ -21,24 +21,24 @@ import org.firstinspires.ftc.teamcode.util.PoseStorage;
 import java.util.Arrays;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@Autonomous(name = "BlueFar", group = "Linear OpMode")
-public class AutomBlueFar extends LinearOpMode {
+@Autonomous(name = "RedFar", group = "Linear OpMode")
+public class AutomRedFar extends LinearOpMode {
 
     @Override
     public void runOpMode() throws InterruptedException {
 
         // --- Poses & Vectors ---
-        Pose2d startPose   = new Pose2d(58, 12, Math.toRadians(90));
-        Pose2d shootingPose = new Pose2d(56, 13, Math.toRadians(215));
+        Pose2d startPose    = new Pose2d(58, 12, Math.toRadians(90));
+        Pose2d shootingPose = new Pose2d(55, 13, Math.toRadians(157));
+        Pose2d shootingFacing90 = new Pose2d(55, 13, Math.toRadians(90));
 
         Vector2d stack3Align    = new Vector2d(35, 33);
         Vector2d stack3Vec      = new Vector2d(35, 57);
 
-        Vector2d humanBox1Align   = new Vector2d(58, 40);
-        Vector2d humanBox1Vec     = new Vector2d(58, 60);
-        Vector2d humanBox1BackVec = new Vector2d(58, 52);
+        Vector2d humanBox1Align   = new Vector2d(62, 40);
+        Vector2d humanBox1Vec     = new Vector2d(62, 60);
 
-        Vector2d humanBox2Vec = new Vector2d(42, 60);
+        Vector2d humanBox2Vec = new Vector2d(55, 60);
 
         // --- Drive & Hardware init ---
         SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
@@ -46,57 +46,53 @@ public class AutomBlueFar extends LinearOpMode {
         Outtake outtake           = new Outtake(hardwareMap);
         drive.setPoseEstimate(startPose);
 
-        // --- Speed constraints ---
+        // Store starting pose immediately so TeleOp has it even if auto stops early
+        PoseStorage.currentPose = startPose;
+        PoseStorage.isBlueAlliance = false;
+
+        // --- Speed constraints (20% faster than default) ---
         TrajectoryVelocityConstraint fastVel = new MinVelocityConstraint(Arrays.asList(
                 new AngularVelocityConstraint(DriveConstants.MAX_ANG_VEL),
-                new MecanumVelocityConstraint(101, DriveConstants.TRACK_WIDTH)
+                new MecanumVelocityConstraint(121, DriveConstants.TRACK_WIDTH)
         ));
-        TrajectoryAccelerationConstraint fastAccel = new ProfileAccelerationConstraint(101);
+        TrajectoryAccelerationConstraint fastAccel = new ProfileAccelerationConstraint(121);
 
         // ---------------------------------------------------------------
         // Build trajectories
         // ---------------------------------------------------------------
 
         Trajectory toShooting = drive.trajectoryBuilder(startPose)
-                .lineToLinearHeading(shootingPose)
+                .splineToLinearHeading(shootingPose, Math.toRadians(180), fastVel, fastAccel)
                 .build();
 
-        // Aggressive left curve to align at x=35 before the balls, then straight to stack
-        Trajectory toStack3 = drive.trajectoryBuilder(shootingPose, Math.toRadians(175))
-                .splineToLinearHeading(new Pose2d(stack3Align, Math.toRadians(90)), Math.toRadians(90))
+        // After shooting, turn to 90° then spline to stack
+        Trajectory toStack3 = drive.trajectoryBuilder(shootingFacing90, Math.toRadians(120))
+                .splineToLinearHeading(new Pose2d(stack3Align, Math.toRadians(90)), Math.toRadians(90), fastVel, fastAccel)
                 .splineToConstantHeading(stack3Vec, Math.toRadians(90), fastVel, fastAccel)
                 .build();
 
         Trajectory stack3ToShooting = drive.trajectoryBuilder(new Pose2d(stack3Vec, Math.toRadians(90)))
-                .lineToLinearHeading(shootingPose)
+                .splineToLinearHeading(shootingPose, Math.toRadians(270), fastVel, fastAccel)
                 .build();
 
-        // 1st visit: align heading 90 at y=40, drive into balls, back up, collect
-        Trajectory toHumanBox1 = drive.trajectoryBuilder(shootingPose)
-                .lineToLinearHeading(new Pose2d(humanBox1Align, Math.toRadians(90)))
-                .lineToConstantHeading(humanBox1Vec)
-                .build();
-
-        Trajectory humanBox1BackUp = drive.trajectoryBuilder(new Pose2d(humanBox1Vec, Math.toRadians(90)), true)
-                .lineToConstantHeading(humanBox1BackVec)
-                .build();
-
-        Trajectory humanBox1Collect = drive.trajectoryBuilder(new Pose2d(humanBox1BackVec, Math.toRadians(90)))
-                .lineToConstantHeading(humanBox1Vec)
+        // 1st visit: from 90° heading, go to align then into balls (direct)
+        Trajectory toHumanBox1 = drive.trajectoryBuilder(shootingFacing90)
+                .splineToConstantHeading(humanBox1Align, Math.toRadians(90), fastVel, fastAccel)
+                .lineToConstantHeading(humanBox1Vec, fastVel, fastAccel)
                 .build();
 
         Trajectory humanBox1ToShooting = drive.trajectoryBuilder(new Pose2d(humanBox1Vec, Math.toRadians(90)))
-                .lineToLinearHeading(shootingPose)
+                .splineToLinearHeading(shootingPose, Math.toRadians(270), fastVel, fastAccel)
                 .build();
 
-        // 2nd visit: spline left to x=42 aligned at y=40, then straight to box
-        Trajectory toHumanBox2 = drive.trajectoryBuilder(shootingPose, Math.toRadians(150))
-                .splineToLinearHeading(new Pose2d(42, 40, Math.toRadians(90)), Math.toRadians(90))
+        // 2nd visit: from 90° heading, spline to x=42 then straight to box
+        Trajectory toHumanBox2 = drive.trajectoryBuilder(shootingFacing90, Math.toRadians(120))
+                .splineToLinearHeading(new Pose2d(42, 40, Math.toRadians(90)), Math.toRadians(90), fastVel, fastAccel)
                 .splineToConstantHeading(humanBox2Vec, Math.toRadians(90), fastVel, fastAccel)
                 .build();
 
         Trajectory humanBox2ToShooting = drive.trajectoryBuilder(new Pose2d(humanBox2Vec, Math.toRadians(90)))
-                .lineToLinearHeading(shootingPose)
+                .splineToLinearHeading(shootingPose, Math.toRadians(270), fastVel, fastAccel)
                 .build();
 
         // ---------------------------------------------------------------
@@ -109,9 +105,9 @@ public class AutomBlueFar extends LinearOpMode {
         waitForStart();
         if (!opModeIsActive()) return;
 
-        double targetVelocity = 1650;
+        double targetVelocity = 1950;
         double idleSpeed = targetVelocity * (2.0 / 3.0);
-        outtake.setHoodPosition(0.6);
+        outtake.setHoodPosition(0.4);
         outtake.setVelocityDirect(idleSpeed);
         outtake.setTurretLock(true, 0);
 
@@ -119,17 +115,20 @@ public class AutomBlueFar extends LinearOpMode {
         // Execute
         // ---------------------------------------------------------------
 
-        // 0. Drive to shooting position
+        // 0. Drive to shooting position — spin up shooter during drive
         intake.setArmPosition(0.2);
         intake.setMotorPower(0.4);
         outtake.setVelocityDirect(targetVelocity);
         drive.followTrajectoryAsync(toShooting);
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         intake.setMotorPower(0);
-        outtake.waitForVelocity(targetVelocity, 800);
+        outtake.waitForVelocity(targetVelocity, 2000); // 500ms more for first shooting
         performShoot(outtake, intake, targetVelocity, idleSpeed);
 
-        // --- 3rd stack ---
+        // --- Turn to 90° then straight to stack ---
+        drive.turnAsync(Math.toRadians(90) - Math.toRadians(157));
+        while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
+
         intake.setArmPosition(0.2);
         intake.setMotorPower(1.0);
         drive.followTrajectoryAsync(toStack3);
@@ -141,18 +140,16 @@ public class AutomBlueFar extends LinearOpMode {
         drive.followTrajectoryAsync(stack3ToShooting);
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         intake.setMotorPower(0);
+        outtake.waitForVelocity(targetVelocity, 500);
         performShoot(outtake, intake, targetVelocity, idleSpeed);
 
-        // --- Human player box (1st visit — break, back up, collect) ---
+        // --- Turn to 90° then human box 1 ---
+        drive.turnAsync(Math.toRadians(90) - Math.toRadians(157));
+        while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
+
         intake.setArmPosition(0.2);
         intake.setMotorPower(1.0);
         drive.followTrajectoryAsync(toHumanBox1);
-        while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
-
-        drive.followTrajectoryAsync(humanBox1BackUp);
-        while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
-
-        drive.followTrajectoryAsync(humanBox1Collect);
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         sleep(150);
 
@@ -161,9 +158,13 @@ public class AutomBlueFar extends LinearOpMode {
         drive.followTrajectoryAsync(humanBox1ToShooting);
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         intake.setMotorPower(0);
+        outtake.waitForVelocity(targetVelocity, 500);
         performShoot(outtake, intake, targetVelocity, idleSpeed);
 
-        // --- Human player box (2nd visit — collect only) ---
+        // --- Turn to 90° then human box 2 ---
+        drive.turnAsync(Math.toRadians(90) - Math.toRadians(157));
+        while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
+
         intake.setArmPosition(0.2);
         intake.setMotorPower(1.0);
         drive.followTrajectoryAsync(toHumanBox2);
@@ -175,16 +176,17 @@ public class AutomBlueFar extends LinearOpMode {
         drive.followTrajectoryAsync(humanBox2ToShooting);
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         intake.setMotorPower(0);
+        outtake.waitForVelocity(targetVelocity, 500);
         performShoot(outtake, intake, targetVelocity, idleSpeed);
 
         // Save final pose for TeleOp
         PoseStorage.currentPose = drive.getPoseEstimate();
-        PoseStorage.isBlueAlliance = true;
+        PoseStorage.isBlueAlliance = false;
     }
 
     private void performShoot(Outtake outtake, Intake intake, double targetVelocity, double idleSpeed) {
         intake.setArmPosition(0.455);
-        outtake.setHoodPosition(0.6);
+        outtake.setHoodPosition(0.4);
         outtake.setVelocityDirect(targetVelocity);
 
         outtake.waitForVelocity(targetVelocity, 500);
@@ -195,7 +197,7 @@ public class AutomBlueFar extends LinearOpMode {
 
         intake.setMotorPower(0);
         intake.setArmPosition(0.2);
-        outtake.setHoodPosition(0.6);
+        outtake.setHoodPosition(0.4);
         outtake.setVelocityDirect(idleSpeed);
     }
 }

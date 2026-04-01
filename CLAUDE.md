@@ -24,7 +24,7 @@ All team code lives under `TeamCode/src/main/java/org/firstinspires/ftc/teamcode
 
 - **OpModes/** — Runnable programs registered with the FTC SDK. `AutomBlue` and `AutomRed` are autonomous modes (mirrored by Y-axis). `TzeleOp` is the driver-controlled teleop.
 - **classes/** — Hardware subsystems (`Intake`, `Outtake`). Each wraps motors/servos and exposes an `update(Gamepad, ...)` method called every loop.
-- **drive/** — Road Runner mecanum drive implementation. `SampleMecanumDrive` is the main drivetrain class; `DriveConstants` holds tuning parameters (GoBilda 5203 motors, 383.6 CPR, 435 RPM). `StandardTrackingWheelLocalizer` provides dead-reckoning via tracking wheels.
+- **drive/** — Road Runner mecanum drive implementation. `SampleMecanumDrive` is the main drivetrain class; `DriveConstants` holds tuning parameters (GoBilda 5203 motors, 383.6 CPR, 435 RPM). `StandardTrackingWheelLocalizer` provides dead-reckoning via three tracking wheels.
 - **trajectorysequence/** — Road Runner trajectory sequencing (trajectories + waits + turns).
 - **util/** — `PoseStorage` persists robot pose and alliance color across auto→teleop transitions. Other utilities for logging, encoders, and dashboard.
 
@@ -41,6 +41,7 @@ All team code lives under `TeamCode/src/main/java/org/firstinspires/ftc/teamcode
 - Shooter motors: `shooter`, `shooter2` (dual, reversed, PIDF velocity control)
 - Intake motor: `intake` (GoBilda 1100 RPM)
 - Servos: `servoIntake` (arm), `servoUnghi` (hood angle)
+- Odometry encoders: left on `rf` port, right on `lb` port, front (lateral) on `rb` port
 
 ## Key Libraries
 
@@ -51,8 +52,10 @@ All team code lives under `TeamCode/src/main/java/org/firstinspires/ftc/teamcode
 
 ## Important Constants
 
+- Turret power: 0.8 (RUN_TO_POSITION)
 - Turret limits: -315 to 1395 encoder ticks
 - Turret ticks per revolution: 383.6 * 4.7 = 1802.92
 - Shooter PIDF: (0.8, 0, 0.5, 11.7), idle velocity 1100 ticks/s
-- Goal coordinates: X=-65, Y=-65 (blue) / Y=65 (red)
+- Goal coordinates: X=-70, Y=-67 (blue) / Y=67 (red)
 - Drive max velocity: 60 in/s, max accel: 60 in/s²
+- Odometry: 2000 TPR, wheel radius 0.63in, lateral distance 9.47in

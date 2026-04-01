@@ -1,7 +1,5 @@
 package org.firstinspires.ftc.teamcode.classes;
 
-import com.acmerobotics.roadrunner.control.PIDCoefficients;
-import com.acmerobotics.roadrunner.control.PIDFController;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -26,9 +24,7 @@ public class Outtake {
     public int MIN_TURRET_LIMIT = -315;
     public int MAX_TURRET_LIMIT = 1395;
 
-    public static PIDCoefficients TURRET_PID = new PIDCoefficients(0.008, 0, 0.0006);
-    public static double TURRET_F = 0.04;
-    private PIDFController turretController;
+    public static double TURRET_POWER = 0.8;
 
     private boolean turretLocked = false;
     private int lockedTurretPos = 0;
@@ -58,10 +54,10 @@ public class Outtake {
     public Outtake(HardwareMap hardwareMap) {
         tureta = hardwareMap.get(DcMotorEx.class, "tureta");
         tureta.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        tureta.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        tureta.setTargetPosition(0);
+        tureta.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         tureta.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-        turretController = new PIDFController(TURRET_PID, 0, 0, TURRET_F);
+        tureta.setPower(TURRET_POWER);
 
         shooter1 = hardwareMap.get(DcMotorEx.class, "shooter");
         shooter2 = hardwareMap.get(DcMotorEx.class, "shooter2");
@@ -176,9 +172,8 @@ public class Outtake {
             currentRampVelocity = 0;
         }
 
-        turretController.setTargetPosition(finalClippedTarget);
-        double turretPower = turretController.update(tureta.getCurrentPosition());
-        tureta.setPower(Range.clip(turretPower, -1.0, 1.0));
+        tureta.setTargetPosition(finalClippedTarget);
+        tureta.setPower(TURRET_POWER);
 
         hood.setPosition(currentHoodPos);
         if (shooterOn) {
@@ -205,9 +200,8 @@ public class Outtake {
         if (!turretLocked) return;
         turretTargetPos = lockedTurretPos;
         int clipped = (int) Range.clip(turretTargetPos, MIN_TURRET_LIMIT, MAX_TURRET_LIMIT);
-        turretController.setTargetPosition(clipped);
-        double power = turretController.update(tureta.getCurrentPosition());
-        tureta.setPower(Range.clip(power, -1.0, 1.0));
+        tureta.setTargetPosition(clipped);
+        tureta.setPower(TURRET_POWER);
     }
 
     public void setVelocityDirect(double velocity) {

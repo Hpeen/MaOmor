@@ -18,8 +18,10 @@ public class TzeleOp extends LinearOpMode {
     double goalYRed = 67;
 
     boolean autoAim = false;
+    boolean farLock = false;
     boolean previousTriangle = false;
     boolean previousDpadUp = false;
+    boolean previousDpadDown = false;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -63,6 +65,20 @@ public class TzeleOp extends LinearOpMode {
             }
             previousDpadUp = gamepad1.dpad_up;
 
+            // Far Lock Toggle
+            if (gamepad1.dpad_down && !previousDpadDown) {
+                farLock = !farLock;
+                if (farLock) {
+                    outtake.setShooterOn(true);
+                    outtake.setHoodPosition(0.4);
+                    outtake.setTargetVelocity(1800);
+                    outtake.setTurretLock(true, outtake.getTurretPosition());
+                } else {
+                    outtake.setTurretLock(false, 0);
+                }
+            }
+            previousDpadDown = gamepad1.dpad_down;
+
             double goalY = PoseStorage.isBlueAlliance ? goalYBlue : goalYRed;
 
             // --- DRIVE LOGIC ---
@@ -79,7 +95,13 @@ public class TzeleOp extends LinearOpMode {
 
             // --- SUBSYSTEM UPDATES ---
             intake.update(gamepad1);
-            outtake.update(gamepad1, autoAim, drive.getPoseEstimate(), goalX, goalY);
+            outtake.update(gamepad1, autoAim && !farLock, drive.getPoseEstimate(), goalX, goalY);
+
+            // Far Lock overrides: hold hood, velocity, and turret position
+            if (farLock) {
+                outtake.setHoodPosition(0.4);
+                outtake.setVelocityDirect(1800);
+            }
 
             // Trigger ramp-up when intake is active (feeding rings)
             if (gamepad1.right_trigger > 0.1 && outtake.isShooterOn()) {
@@ -97,7 +119,7 @@ public class TzeleOp extends LinearOpMode {
 
             // --- TELEMETRY ---
             telemetry.addData("Alliance", PoseStorage.isBlueAlliance ? "BLUE" : "RED");
-            telemetry.addData("Mode", autoAim ? "AUTO AIM" : "MANUAL");
+            telemetry.addData("Mode", farLock ? "FAR LOCK" : (autoAim ? "AUTO AIM" : "MANUAL"));
             Pose2d pose = drive.getPoseEstimate();
             telemetry.addData("Robot Pose", "X:%.1f Y:%.1f H:%.1f deg", 
                     pose.getX(), pose.getY(), Math.toDegrees(pose.getHeading()));
