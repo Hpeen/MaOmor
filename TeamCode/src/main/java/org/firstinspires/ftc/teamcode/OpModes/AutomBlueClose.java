@@ -21,24 +21,24 @@ import org.firstinspires.ftc.teamcode.util.PoseStorage;
 import java.util.Arrays;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@Autonomous(name = "RedClose", group = "Linear OpMode")
-public class AutomRed extends LinearOpMode {
+@Autonomous(name = "BlueClose", group = "Linear OpMode")
+public class AutomBlueClose extends LinearOpMode {
 
     @Override
     public void runOpMode() throws InterruptedException {
 
-        // --- Poses & Vectors (Y mirrored from BlueClose) ---
-        Pose2d startPose         = new Pose2d(-59.47, 39.09, Math.toRadians(180));
-        Pose2d shootingPose      = new Pose2d(-18, 17, Math.toRadians(132));
-        Pose2d shootingFacing90  = new Pose2d(-18, 17, Math.toRadians(90));
+        // --- Poses & Vectors ---
+        Pose2d startPose         = new Pose2d(-59.47, -39.09, Math.toRadians(180));
+        Pose2d shootingPose      = new Pose2d(-18, -17, Math.toRadians(228));
+        Pose2d shootingFacing270 = new Pose2d(-18, -17, Math.toRadians(270));
 
-        Vector2d stack1Vec      = new Vector2d(-6.1, 55);
-        Vector2d stack2Approach = new Vector2d(15.4, 37);
-        Vector2d stack2Vec      = new Vector2d(15.4, 60);
+        Vector2d stack1Vec      = new Vector2d(-6.1, -55);
+        Vector2d stack2Approach = new Vector2d(15.4, -37);
+        Vector2d stack2Vec      = new Vector2d(15.4, -60);
 
-        Vector2d gateApproach = new Vector2d(5, 37);
-        Pose2d gatePress      = new Pose2d(5, 55, Math.toRadians(90));
-        Pose2d gateIntakePose = new Pose2d(20, 62, Math.toRadians(170));
+        Vector2d gateApproach = new Vector2d(5, -37);
+        Pose2d gatePress      = new Pose2d(5, -55, Math.toRadians(270));
+        Pose2d gateIntakePose = new Pose2d(20, -62, Math.toRadians(190));
 
         // --- Drive & Hardware init ---
         SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
@@ -61,28 +61,28 @@ public class AutomRed extends LinearOpMode {
                 .lineToLinearHeading(shootingPose)
                 .build();
 
-        Trajectory toStack1 = drive.trajectoryBuilder(shootingFacing90, Math.toRadians(60))
-                .splineToConstantHeading(stack1Vec, Math.toRadians(90), fastVel, fastAccel)
+        Trajectory toStack1 = drive.trajectoryBuilder(shootingFacing270, Math.toRadians(300))
+                .splineToConstantHeading(stack1Vec, Math.toRadians(270), fastVel, fastAccel)
                 .build();
 
         Trajectory stack1ToShooting = drive.trajectoryBuilder(
-                        new Pose2d(stack1Vec, Math.toRadians(90)))
+                        new Pose2d(stack1Vec, Math.toRadians(270)))
                 .lineToLinearHeading(shootingPose)
                 .build();
 
-        Trajectory toStack2 = drive.trajectoryBuilder(shootingFacing90, Math.toRadians(60))
-                .splineToConstantHeading(stack2Approach, Math.toRadians(90), fastVel, fastAccel)
-                .splineToConstantHeading(stack2Vec, Math.toRadians(90), fastVel, fastAccel)
+        Trajectory toStack2 = drive.trajectoryBuilder(shootingFacing270, Math.toRadians(300))
+                .splineToConstantHeading(stack2Approach, Math.toRadians(270), fastVel, fastAccel)
+                .splineToConstantHeading(stack2Vec, Math.toRadians(270), fastVel, fastAccel)
                 .build();
 
         Trajectory stack2ToShooting = drive.trajectoryBuilder(
-                        new Pose2d(stack2Vec, Math.toRadians(90)), true)
-                .splineToLinearHeading(shootingPose, Math.toRadians(270))
+                        new Pose2d(stack2Vec, Math.toRadians(270)), true)
+                .splineToLinearHeading(shootingPose, Math.toRadians(90))
                 .build();
 
-        Trajectory toGate = drive.trajectoryBuilder(shootingFacing90, Math.toRadians(60))
-                .splineToConstantHeading(gateApproach, Math.toRadians(90), fastVel, fastAccel)
-                .splineToConstantHeading(new Vector2d(gatePress.getX(), gatePress.getY()), Math.toRadians(90), fastVel, fastAccel)
+        Trajectory toGate = drive.trajectoryBuilder(shootingFacing270, Math.toRadians(300))
+                .splineToConstantHeading(gateApproach, Math.toRadians(270), fastVel, fastAccel)
+                .splineToConstantHeading(new Vector2d(gatePress.getX(), gatePress.getY()), Math.toRadians(270), fastVel, fastAccel)
                 .build();
 
         Trajectory gateIntakeTraj = drive.trajectoryBuilder(gatePress)
@@ -124,7 +124,7 @@ public class AutomRed extends LinearOpMode {
         performShoot(outtake, intake, targetVelocity, idleSpeed);
 
         // --- 1st stack ---
-        drive.turnAsync(Math.toRadians(90) - Math.toRadians(132));
+        drive.turnAsync(Math.toRadians(270) - Math.toRadians(228));
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         sleep(150); // settle after turn
         intake.setArmPosition(0.2);
@@ -141,7 +141,7 @@ public class AutomRed extends LinearOpMode {
         performShoot(outtake, intake, targetVelocity, idleSpeed);
 
         // --- 2nd stack ---
-        drive.turnAsync(Math.toRadians(90) - Math.toRadians(132));
+        drive.turnAsync(Math.toRadians(270) - Math.toRadians(228));
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         sleep(150); // settle after turn
         intake.setArmPosition(0.2);
@@ -158,7 +158,7 @@ public class AutomRed extends LinearOpMode {
         performShoot(outtake, intake, targetVelocity, idleSpeed);
 
         // --- Gate ---
-        drive.turnAsync(Math.toRadians(90) - Math.toRadians(132));
+        drive.turnAsync(Math.toRadians(270) - Math.toRadians(228));
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         sleep(150); // settle after turn
         drive.followTrajectoryAsync(toGate);
@@ -180,7 +180,7 @@ public class AutomRed extends LinearOpMode {
 
         // Save final pose and alliance so TeleOp can continue correctly
         PoseStorage.currentPose = drive.getPoseEstimate();
-        PoseStorage.isBlueAlliance = false;
+        PoseStorage.isBlueAlliance = true;
     }
 
     private void performShoot(Outtake outtake, Intake intake, double targetVelocity, double idleSpeed) {
