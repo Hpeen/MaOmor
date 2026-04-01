@@ -10,51 +10,45 @@ public class MeepMeepTesting {
     public static void main(String[] args) {
         MeepMeep meepMeep = new MeepMeep(800);
 
-        Pose2d startPose        = new Pose2d(-59.47, -39.09, Math.toRadians(180));
-        Vector2d shootingVec    = new Vector2d(-18, -17);
-        double shootingHeading  = Math.toRadians(223);
+        Pose2d startPose        = new Pose2d(58, 12, Math.toRadians(90));
+        Vector2d shootingVec    = new Vector2d(56, 13);
+        double shootingHeading  = Math.toRadians(215);
 
-        Vector2d stack1Vec      = new Vector2d(-12, -53);
-        Vector2d stack2Approach = new Vector2d(11.5, -37);
-        Vector2d stack2Vec      = new Vector2d(11.5, -52.5);
-
-        Vector2d gateApproach   = new Vector2d(9.5, -37);
-        Pose2d gateVec          = new Pose2d(9.5, -56.5, Math.toRadians(225));
-        Vector2d gateBack       = new Vector2d(9.5, -46); // back up point after gate
+        Vector2d stack3Vec      = new Vector2d(35, 57);
+        Vector2d humanPlayerBox = new Vector2d(58, 60);
 
         RoadRunnerBotEntity myBot = new DefaultBotBuilder(meepMeep)
                 .setConstraints(60, 60, Math.toRadians(180), Math.toRadians(180), 15)
                 .build();
 
         myBot.runAction(myBot.getDrive().actionBuilder(startPose)
-                // Drive to shooting position
+                // start pos --> shooting pos
                 .strafeToLinearHeading(shootingVec, shootingHeading)
 
-                // --- 1st stack ---
-                .turnTo(Math.toRadians(270))
-                .setTangent(Math.toRadians(300))
-                .splineToConstantHeading(stack1Vec, Math.toRadians(270))
-                // Return straight to shooting position
+                // shooting pos --> 3rd stack (aggressive curve left to align at x=35 before balls)
+                .setTangent(Math.toRadians(175))
+                .splineToLinearHeading(new Pose2d(35, 33, Math.toRadians(90)), Math.toRadians(90))
+                .splineToConstantHeading(stack3Vec, Math.toRadians(90))
+
+                // 3rd stack --> shooting pos
                 .strafeToLinearHeading(shootingVec, shootingHeading)
 
-                // --- 2nd stack ---
-                .turnTo(Math.toRadians(270))
-                .setTangent(Math.toRadians(300))
-                .splineToConstantHeading(stack2Approach, Math.toRadians(270))
-                .splineToConstantHeading(stack2Vec, Math.toRadians(270))
-                // Return straight to shooting position
+                // shooting pos --> human player box (break balls, back up, collect)
+                .strafeToLinearHeading(new Vector2d(58, 40), Math.toRadians(90))
+                .strafeToConstantHeading(humanPlayerBox)
+                .strafeToConstantHeading(new Vector2d(58, 52))
+                .strafeToConstantHeading(humanPlayerBox)
+
+                // human player box --> shooting pos
                 .strafeToLinearHeading(shootingVec, shootingHeading)
 
-                // --- Gate ---
-                .turnTo(Math.toRadians(270))
-                .setTangent(Math.toRadians(300))
-                .splineToConstantHeading(gateApproach, Math.toRadians(270))
-                .splineToLinearHeading(gateVec, Math.toRadians(270))
-                // Back up a little first
-                .setTangent(Math.toRadians(90))
-                .splineToConstantHeading(gateBack, Math.toRadians(90))
-                // Then curve to shooting position
-                .splineToLinearHeading(new Pose2d(shootingVec, shootingHeading), Math.toRadians(90))
+                // shooting pos --> human player box (collect only, shifted left to x=42)
+                .setTangent(Math.toRadians(150))
+                .splineToLinearHeading(new Pose2d(42, 40, Math.toRadians(90)), Math.toRadians(90))
+                .splineToConstantHeading(new Vector2d(42, 60), Math.toRadians(90))
+
+                // human player box --> shooting pos
+                .strafeToLinearHeading(shootingVec, shootingHeading)
 
                 .build());
 
