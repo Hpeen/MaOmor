@@ -13,9 +13,9 @@ import org.firstinspires.ftc.teamcode.util.PoseStorage;
 public class TzeleOp extends LinearOpMode {
 
     // --- Auto Aim Configuration ---
-    double goalX = -72; //-72 sau -58
-    double goalYBlue = -65; //-65 sau -55
-    double goalYRed = 65;
+    double goalX = -70; //-72 sau -58
+    double goalYBlue = -67; //-65 sau -55
+    double goalYRed = 67;
 
     boolean autoAim = false;
     boolean previousTriangle = false;
@@ -27,6 +27,8 @@ public class TzeleOp extends LinearOpMode {
         SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
         Intake intake = new Intake(hardwareMap);
         Outtake outtake = new Outtake(hardwareMap);
+
+
 
         // Check if we have a stored pose from Autonomous
         if (PoseStorage.currentPose != null) {
