@@ -104,7 +104,7 @@ public class AutomBlueClose extends LinearOpMode {
         if (!opModeIsActive()) return;
 
         double targetVelocity = 1650;
-        double idleSpeed = targetVelocity * (2.0 / 3.0);
+        double idleSpeed = targetVelocity * 0.75;
         outtake.setHoodPosition(0.6);
         outtake.setVelocityDirect(idleSpeed);
         outtake.setTurretLock(true, 0); // Lock turret at center for all of auto
@@ -114,7 +114,7 @@ public class AutomBlueClose extends LinearOpMode {
         // ---------------------------------------------------------------
 
         // 0. Drive to first shooting position
-        intake.setArmPosition(0.2);
+        intake.setArmPosition(0.25);
         intake.setMotorPower(0.4);
         outtake.setVelocityDirect(targetVelocity);
         drive.followTrajectoryAsync(toShooting);
@@ -127,7 +127,7 @@ public class AutomBlueClose extends LinearOpMode {
         drive.turnAsync(Math.toRadians(270) - Math.toRadians(228));
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         sleep(150); // settle after turn
-        intake.setArmPosition(0.2);
+        intake.setArmPosition(0.25);
         intake.setMotorPower(1.0);
         drive.followTrajectoryAsync(toStack1);
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
@@ -144,7 +144,7 @@ public class AutomBlueClose extends LinearOpMode {
         drive.turnAsync(Math.toRadians(270) - Math.toRadians(228));
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         sleep(150); // settle after turn
-        intake.setArmPosition(0.2);
+        intake.setArmPosition(0.25);
         intake.setMotorPower(1.0);
         drive.followTrajectoryAsync(toStack2);
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
@@ -165,7 +165,7 @@ public class AutomBlueClose extends LinearOpMode {
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
         sleep(250); // wait for gate to open
 
-        intake.setArmPosition(0.2);
+        intake.setArmPosition(0.25);
         intake.setMotorPower(1.0);
         drive.followTrajectoryAsync(gateIntakeTraj);
         while (opModeIsActive() && drive.isBusy()) { drive.update(); outtake.holdTurret(); }
@@ -186,16 +186,27 @@ public class AutomBlueClose extends LinearOpMode {
     private void performShoot(Outtake outtake, Intake intake, double targetVelocity, double idleSpeed) {
         intake.setArmPosition(0.455);
         outtake.setHoodPosition(0.6);
-        outtake.setVelocityDirect(targetVelocity);
+        // Pre-spin above target so the flywheel has extra energy for the first ball
+        outtake.setVelocityDirect(targetVelocity * 1.02);
 
         outtake.waitForVelocity(targetVelocity, 500);
 
-        intake.setMotorPower(1.0);
-        ElapsedTime feedTimer = new ElapsedTime();
-        while (feedTimer.milliseconds() < 1400) { outtake.holdTurret(); }
+        // Boost velocity during feeding to compensate for balls slowing the flywheel
+        outtake.setVelocityDirect(targetVelocity * 1.05);
+
+        // Pulse-feed: short bursts with pauses to let the flywheel recover between shots
+        for (int i = 0; i < 4; i++) {
+            intake.setMotorPower(1.0);
+            ElapsedTime pulseOn = new ElapsedTime();
+            while (pulseOn.milliseconds() < 200) { outtake.holdTurret(); }
+
+            intake.setMotorPower(0);
+            ElapsedTime pulseOff = new ElapsedTime();
+            while (pulseOff.milliseconds() < 150) { outtake.holdTurret(); }
+        }
 
         intake.setMotorPower(0);
-        intake.setArmPosition(0.2);
+        intake.setArmPosition(0.25);
         outtake.setHoodPosition(0.6);
         outtake.setVelocityDirect(idleSpeed);
     }

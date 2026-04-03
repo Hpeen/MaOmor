@@ -106,7 +106,7 @@ public class AutomRedFar extends LinearOpMode {
         if (!opModeIsActive()) return;
 
         double targetVelocity = 1850;
-        double idleSpeed = targetVelocity * (2.0 / 3.0);
+        double idleSpeed = targetVelocity * 0.75;
         outtake.setHoodPosition(0.4);
         outtake.setVelocityDirect(idleSpeed);
         outtake.setTurretLock(true, 0);
@@ -185,13 +185,21 @@ public class AutomRedFar extends LinearOpMode {
     private void performShoot(Outtake outtake, Intake intake, double targetVelocity, double idleSpeed) {
         intake.setArmPosition(0.455);
         outtake.setHoodPosition(0.25);
-        outtake.setVelocityDirect(targetVelocity);
+        outtake.setVelocityDirect(targetVelocity * 1.02);
 
         outtake.waitForVelocity(targetVelocity, 500);
 
-        intake.setMotorPower(1.0);
-        ElapsedTime feedTimer = new ElapsedTime();
-        while (feedTimer.milliseconds() < 1400) { outtake.holdTurret(); }
+        outtake.setVelocityDirect(targetVelocity * 1.05);
+
+        for (int i = 0; i < 4; i++) {
+            intake.setMotorPower(1.0);
+            ElapsedTime pulseOn = new ElapsedTime();
+            while (pulseOn.milliseconds() < 200) { outtake.holdTurret(); }
+
+            intake.setMotorPower(0);
+            ElapsedTime pulseOff = new ElapsedTime();
+            while (pulseOff.milliseconds() < 150) { outtake.holdTurret(); }
+        }
 
         intake.setMotorPower(0);
         outtake.setHoodPosition(0.4);

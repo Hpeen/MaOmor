@@ -30,6 +30,7 @@ public class Outtake {
     private int lockedTurretPos = 0;
     private int lastAutoAimTarget = 0;
     private boolean hasAutoAimTarget = false;
+    private boolean poseJustCorrected = false;
 
     // --- Shooter ---
     private DcMotorEx shooter1, shooter2;
@@ -41,7 +42,7 @@ public class Outtake {
 
     private static final double MECHANICAL_COMPENSATION = 1.1667;
     private static final double SPEED_ADJUSTMENT = 0.92;
-    private static final double IDLE_VELOCITY = 1100; // 2/3 of 1650 target
+    private static final double IDLE_FRACTION = 0.75; // 3/4 of target velocity
 
     // --- Hood ---
     private Servo hood;
@@ -133,8 +134,14 @@ public class Outtake {
             instantTarget = turretVal;
         }
 
-        double filterAlpha = (autoAim && !turretLocked) ? 0.8 : 0.35;
-        turretTargetPos = (turretTargetPos * (1.0 - filterAlpha)) + (instantTarget * filterAlpha);
+        if (poseJustCorrected) {
+            // Pose was corrected by camera — skip the filter and snap immediately
+            turretTargetPos = instantTarget;
+            poseJustCorrected = false;
+        } else {
+            double filterAlpha = (autoAim && !turretLocked) ? 0.95 : 0.35;
+            turretTargetPos = (turretTargetPos * (1.0 - filterAlpha)) + (instantTarget * filterAlpha);
+        }
         turretTargetPos = Range.clip(turretTargetPos, MIN_TURRET_LIMIT, MAX_TURRET_LIMIT);
         int finalClippedTarget = (int) turretTargetPos;
 
@@ -148,7 +155,7 @@ public class Outtake {
                 setShooterOn(true);
             }
             if (shooterOn && !autoAim) {
-                double manualV = 1550;
+                double manualV = 1600;
                 if (currentPose.getX() > 0) manualV *= 0.94;
                 baseTargetVelocity = manualV * SPEED_ADJUSTMENT * MECHANICAL_COMPENSATION;
             }
@@ -161,13 +168,14 @@ public class Outtake {
         if (isRamping) {
             double time = rampTimer.seconds();
             if (time < 0.5) {
-                currentRampVelocity = baseTargetVelocity + (baseTargetVelocity * 0.2 * (time / 0.5));
+                currentRampVelocity = baseTargetVelocity + (baseTargetVelocity * 0.05 * (time / 0.5));
             } else {
-                currentRampVelocity = baseTargetVelocity * 1.2;
+                currentRampVelocity = baseTargetVelocity * 1.05;
                 if (gamepad == null || gamepad.right_trigger <= 0.1) isRamping = false;
             }
         } else if (shooterOn) {
-            currentRampVelocity = baseTargetVelocity;
+            // Pre-spin slightly above target so the first ball has extra flywheel energy
+            currentRampVelocity = baseTargetVelocity * 1.02;
         } else {
             currentRampVelocity = 0;
         }
@@ -180,9 +188,14 @@ public class Outtake {
             shooter1.setVelocity(currentRampVelocity);
             shooter2.setVelocity(currentRampVelocity);
         } else {
-            shooter1.setVelocity(IDLE_VELOCITY);
-            shooter2.setVelocity(IDLE_VELOCITY);
+            double idleVel = baseTargetVelocity * IDLE_FRACTION;
+            shooter1.setVelocity(idleVel);
+            shooter2.setVelocity(idleVel);
         }
+    }
+
+    public void notifyPoseCorrected() {
+        poseJustCorrected = true;
     }
 
     public void setTurretLock(boolean locked, int position) {
@@ -228,8 +241,8 @@ public class Outtake {
         shooterOn = false;
         baseTargetVelocity = 0;
         isRamping = false;
-        shooter1.setVelocity(IDLE_VELOCITY);
-        shooter2.setVelocity(IDLE_VELOCITY);
+        shooter1.setVelocity(0);
+        shooter2.setVelocity(0);
     }
 
     public void triggerRamp() {

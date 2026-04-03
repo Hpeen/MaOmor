@@ -21,7 +21,7 @@ public class Intake {
         intake.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         arm = hardwareMap.get(Servo.class, "servoIntake");
-        arm.setPosition(0.2); // Start closed
+        arm.setPosition(0.25); // Start closed
     }
 
     public void update(Gamepad gamepad) {
@@ -33,7 +33,7 @@ public class Intake {
         // Manual Arm Toggle (Square)
         if (gamepad.square && !prevSquare) {
             armExtended = !armExtended;
-            setArmPosition(armExtended ? 0.455 : 0.2);
+            setArmPosition(armExtended ? 0.455 : 0.25);
         }
         prevSquare = gamepad.square;
     }
@@ -41,7 +41,7 @@ public class Intake {
     public void setMotorPower(double power) {
         if (power == 0) {
             intake.setVelocity(0);
-        } else {
+} else {
             intake.setVelocity(power * MAX_VELOCITY);
         }
     }
